@@ -23,11 +23,11 @@ app.get('/register', (req, res) => {
 });
 // Routes for signup and signin
 app.post('/signup', async (req, res) => {
-  const { username, password } = req.body;
+  const { phone, password } = req.body;
 
   // Validate input
-  if (!username || !password) {
-    return res.status(400).json({ message: 'Username and password are required.' });
+  if (!phone || !password) {
+    return res.status(400).json({ message: 'phone and password are required.' });
   }
 
   // Connect to MongoDB
@@ -38,14 +38,14 @@ app.post('/signup', async (req, res) => {
     const db = client.db(dbName);
     const usersCollection = db.collection('users');
 
-    // Check if the username already exists
-    const existingUser = await usersCollection.findOne({ username });
+    // Check if the phone already exists
+    const existingUser = await usersCollection.findOne({ phone });
     if (existingUser) {
-      return res.status(409).json({ message: 'Username already exists.' });
+      return res.status(409).json({ message: 'phone already exists.' });
     }
 
     // Insert the new user
-    const result = await usersCollection.insertOne({ username, password });
+    const result = await usersCollection.insertOne({ phone, password });
 
     res.render('index');
   } catch (error) {
@@ -57,11 +57,11 @@ app.post('/signup', async (req, res) => {
 });
 
 app.post('/signin', async (req, res) => {
-  const { username, password } = req.body;
+  const { phone, password } = req.body;
 
   // Validate input
-  if (!username || !password) {
-    return res.status(400).json({ message: 'Username and password are required.' });
+  if (!phone || !password) {
+    return res.status(400).json({ message: 'phone and password are required.' });
   }
 
   // Connect to MongoDB
@@ -73,9 +73,9 @@ app.post('/signin', async (req, res) => {
     const usersCollection = db.collection('users');
 
     // Check if the user exists
-    const user = await usersCollection.findOne({ username, password });
+    const user = await usersCollection.findOne({ phone, password });
     if (!user) {
-      return res.status(401).json({ message: 'Invalid username or password.' });
+      return res.status(401).json({ message: 'Invalid phone or password.' });
     }
 
     //return res.status(200).json({ message: 'Login successful.', userId: user._id });
