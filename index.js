@@ -1,113 +1,93 @@
-
 const express = require('express');
-const path = require('path');
-const cookieParser = require('cookie-parser');
-const session = require('express-session');
-const mysql = require('mysql2');
-const jwt = require('jsonwebtoken');
-const { Server } = require('socket.io');
+const bodyParser = require('body-parser');
+const { MongoClient } = require('mongodb');
 
 const app = express();
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
-
-app.use(session({
-    secret: '    djalal ',
-    resave: false,
-    saveUninitialized: false
-}));
-
+const port = 8080;
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+app.set('view engine', 'ejs');
 app.use(express.static('public'));
 
 
-const server = app.listen(3001, () => {
-    const host = '127.0.0.1';
-    const port = server.address().port;
-    console.log(`Server running on http://${host}:${port}`);
-});
-
-const io = new Server(server);
-
-const con = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'websocket'
-});
-
-
-app.set('view engine', 'ejs');
-
+const url = 'mongodb://um0jjsslokmdnpkzbtuu:qywB5OngZgA2k9Id3bd@buchtxsvk1n9da3rvdlp-mongodb.services.clever-cloud.com:2927/buchtxsvk1n9da3rvdlp';
+const dbName = 'buchtxsvk1n9da3rvdlp';
 
 app.get('/', (req, res) => {
-
-    res.redirect('/user');
-
+  res.render('index'); // Render the index.ejs file
 });
 
 
+app.get('/register', (req, res) => {
+  res.render('registration'); // Render the index.ejs file
+});
+// Routes for signup and signin
+app.post('/signup', async (req, res) => {
+  const { username, password } = req.body;
 
+  // Validate input
+  if (!username || !password) {
+    return res.status(400).json({ message: 'Username and password are required.' });
+  }
 
-app.get('/user', (req, res) => {
-    if (req.session.user) {
+  // Connect to MongoDB
+  const client = new MongoClient(url, { useNewUrlParser: true, useUnifiedTopology: true });
 
-        const user = req.session.user;
+  try {
+    await client.connect();
+    const db = client.db(dbName);
+    const usersCollection = db.collection('users');
 
-
-        res.render('user', { user: user });
-    } else {
-
-        res.render('login');
+    // Check if the username already exists
+    const existingUser = await usersCollection.findOne({ username });
+    if (existingUser) {
+      return res.status(409).json({ message: 'Username already exists.' });
     }
+
+    // Insert the new user
+    const result = await usersCollection.insertOne({ username, password });
+
+    res.render('index');
+  } catch (error) {
+    console.error('Error during signup:', error);
+    return res.status(500).json({ message: 'Internal Server Error.' });
+  } finally {
+    await client.close();
+  }
 });
 
-app.post("/login", (req, res) => {
-    const phone = req.body.phone;
-    const password = req.body.password;
-    console.log(password, phone)
-    con.connect(function (err) {
-        if (err) throw err;
-        console.log("Connected!");
-        con.query('SELECT * FROM users WHERE phone=? and password=?', [phone, password], function (error, results, fields) {
-            if (error) throw error;
+app.post('/signin', async (req, res) => {
+  const { username, password } = req.body;
 
-            if (results.length == 1) {
+  // Validate input
+  if (!username || !password) {
+    return res.status(400).json({ message: 'Username and password are required.' });
+  }
 
+  // Connect to MongoDB
+  const client = new MongoClient(url, { useNewUrlParser: true, useUnifiedTopology: true });
 
-                req.session.user = results[0];
-                console.log(req.session.user);
-                // توجيه المتصفح إلى صفحة المحادثة
-                res.redirect('/user');
+  try {
+    await client.connect();
+    const db = client.db(dbName);
+    const usersCollection = db.collection('users');
 
-                console.log("ok done")
+    // Check if the user exists
+    const user = await usersCollection.findOne({ username, password });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid username or password.' });
+    }
 
-
-            }
-
-
-
-
-
-        });
-    })
-})
-
-
-app.get("/users", (req, res) => {
-    const excludedUserId = req.query.excludedUserId;
-
-    con.connect(function (err) {
-        if (err) throw err;
-        console.log("Connected!");
-
-        const query = "SELECT * FROM users WHERE id <> ?";
-        con.query(query, [excludedUserId], function (error, results, fields) {
-            if (error) throw error;
-
-
-            res.status(200).json(results);
-        });
-    });
+    //return res.status(200).json({ message: 'Login successful.', userId: user._id });
+    res.render('start');
+  } catch (error) {
+    console.error('Error during signin:', error);
+    return res.status(500).json({ message: 'Internal Server Error.' });
+  } finally {
+    await client.close();
+  }
 });
+app.listen(port, '0.0.0.0', () => {
+  // ...
+});
+
